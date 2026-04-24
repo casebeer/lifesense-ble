@@ -16,6 +16,7 @@ The primary service on the device is `0000a602-0000-1000-8000-00805f9b34fb`.
 
 The scale sends data and commands to the client as notifications to the characteristic `a621`. These
 must be acknowledged manually by the client via write-without-response to the characteristic `a622`.
+Note that the scale will repeatedly send the same notification until you send this acknowledgment.
 
 The client sends commands to the scale via write-without-response to the characteristic `a624`. The
 scale will acknowledge these writes via notify to the characteristic `a625`.
@@ -100,3 +101,12 @@ Octets 12–15 are the Unix timestamp of the measurement, encoded as a big-endia
   - 3 lbs 10 oz = 1645 g = 0x066d (big-endian int16)
   - Unix timestamp 1776969451 (2026-04-23 14:37:31) = 0x69ea66df (big-endian int32)
   - [c2s] ack notify via write to `a622`: `0001 01`
+
+### Other notifications
+
+Whenever the scale's units are changed via the front panel button, it sends a notification to
+`a621` with the conent:
+
+- `1003 2004 00` when the scale has been set to display kilograms
+- `1003 2004 01` when the scale has been set to display pounds
+- `1003 2004 02` when the scale has been set to display pounds and ounces
