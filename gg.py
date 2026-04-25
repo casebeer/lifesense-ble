@@ -67,12 +67,6 @@ async def main():
                 print(f"  [Characteristic] 0x{char.handle:x} {char.uuid}: ({','.join(char.properties)})")
 
         service = client.services.get_service(ggService)
-        #for c in [ggChar0, ggChar1, ggChar5]:
-        #    char = service.get_characteristic(c)
-        #    await client.start_notify(char, callback)
-        #    logger.info(f"Subscribed to {char}")
-        #
-
         writeAckEvent = asyncio.Event()
 
         async def writeAck():
@@ -105,47 +99,31 @@ async def main():
 
             # only on char21
             match data.hex():
-                #     # could last byte be battery percentage? went from 4f=79 to 47=71
-                #      100a00070000000000000047
-                #case "100a0007000000000000004f":
+                # could last byte be battery percentage? went from 4f=79 to 47=71
+                # 100a 0007 0000 0000 0000 0047
+                # 100a 0007 0000 0000 0000 004f
                 case s if s.startswith("100a0007"):
-                                                #   100b 0008 0100 0000 0000 0000 02
-                    await writeValue(bytes.fromhex("100b0008010000000000000002"))
+                    await writeValue(bytes.fromhex("100b 0008 0100 0000 0000 0000 02"))
 
-                #     1003 0009 18
                 case "1003000918":
-                    #await asyncio.sleep(.1)
                     #print("writing 1008 big-endian time")
-                    #                                          # 1008 000a 18
-                    #value = struct.pack(">5sls", bytes.fromhex("1008000a18"), timestamp, b"\x20")
-                    #print(value.hex())
-                    #await client.write_gatt_char(char24, value, response=False)
-                    #await asyncio.sleep(.1)
-                                                  # 1003 1004 02
-                    await writeValue(bytes.fromhex("1003100402"))
+                    #value = struct.pack(">5sls", bytes.fromhex("1008 000a 18"), timestamp, b"\x20")
+                    #writeValue(value)
+                    await writeValue(bytes.fromhex("1003 1004 02"))
 
-                    # 1005 1000 1004 01
                 case "10051000100401":
-                    #await asyncio.sleep(.1)
                     print("writing 1009 little-endian time")
                     value = struct.pack("<5sls", bytes.fromhex("1009100203"), timestamp, b"\x30")
-                    #print(value.hex())
-                    #print(timestamp)
-                    #print(struct.pack("<l", timestamp).hex())
                     await writeValue(value)
 
-                    # 1005 1000 1002 01
                 case "10051000100201":
-                                                  # 1004 4801 0001
-                    await writeValue(bytes.fromhex("100448010001"))
+                    await writeValue(bytes.fromhex("1004 4801 0001"))
                     print("Waiting for data...")
 
-                                      # 100e 4802
                 case s if s.startswith("100e4802"):
-                    print(parse_measurement(data))
+                    print(Measurement.fromBleData(data))
                     print("Waiting for data...")
 
-                    # 1003 2004 00
                 case "1003200400":
                     print("Scale set to kg")
                 case "1003200401":
@@ -154,12 +132,8 @@ async def main():
                     print("Scale set to lbs + oz")
 
 
-
-
         async def callback(char, data: bytearray):
-            #print(f"NOTIFY: {char}: {data.hex()}")
             await handle_command(char, data)
-
 
 
         for char in service.characteristics:
@@ -174,16 +148,18 @@ async def main():
 
         await asyncio.Event().wait()
 
-def parse_measurement(data):
-    # 100e 4802 0000 0000 0008 0538 69eafdcc
-    # 100e 4802 0000 0000 0008 0537 69ea66df
-    _, _, _, _, _, grams, timestamp = struct.unpack(">hhhhhhl", data)
-    return Measurement(grams=grams, timestamp=datetime.datetime.fromtimestamp(timestamp))
-
 @dataclass
 class Measurement:
     grams: int
     timestamp: datetime.datetime
+
+    @classmethod
+    def fromBleData(cls, data):
+        # 100e 4802 0000 0000 0008 0538 69eafdcc
+        # 100e 4802 0000 0000 0008 0537 69ea66df
+        _, _, _, _, _, grams, timestamp = struct.unpack(">hhhhhhl", data)
+        return cls(grams=grams, timestamp=datetime.datetime.fromtimestamp(timestamp))
+
 
 '''
   - NOTIFY a621:         100a 0007 0000 0000 0000 004f
@@ -215,5 +191,6 @@ class Measurement:
 - NOTIFY a625 0001 01
 '''
 
-# Run the asynchronous event loop
-asyncio.run(main())
+if __name__ == '__main__':
+    # Run the asynchronous event loop
+    asyncio.run(main())
